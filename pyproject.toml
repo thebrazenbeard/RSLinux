@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rslinux5000000"
+version = "0.1.0"
+description = "Read-only EtherNet/IP identity probe and Logix L5X inspector"
+requires-python = ">=3.10"
+
+[project.scripts]
+rslinux = "rslinux5000000.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
