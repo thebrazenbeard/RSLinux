@@ -1,4 +1,4 @@
-# RSLinux5000000 — Research prototype 0.1
+# RSLinux — Research prototype 0.1
 
 This is a **read-only Python starter**, aimed first at a Rockwell Automation CompactLogix 1769-L32E. It is **not** a replacement for RSLogix 5000 or Studio 5000, not a controller program uploader, and has **not** been tested against physical PLC hardware.
 
