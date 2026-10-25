@@ -12,7 +12,7 @@ This is a **read-only Python starter**, aimed first at a Rockwell Automation Com
 
 Python 3.10+ (Linux, Windows, or macOS). No third-party dependencies for the commands.
 
-Install from this GitHub repository with `python -m pip install git+https://github.com/thebrazenbeard/RSLinux5000000.git`, or clone it and run `python -m pip install .` in the checkout. The installed `rslinux` command supports `discover`, `probe`, and `l5x-summary`. The `PYTHONPATH=src` commands below also work without installation from a checkout.
+Install from this GitHub repository with `python -m pip install git+https://github.com/thebrazenbeard/RSLinux.git`, or clone it and run `python -m pip install .` in the checkout. The installed `rslinux` command supports `discover`, `probe`, and `l5x-summary`. The `PYTHONPATH=src` commands below also work without installation from a checkout.
 
 In the project directory:
 
@@ -50,3 +50,14 @@ Read-only network requests still interact with embedded devices; do not equate a
 - [libplctag/libplctag](https://github.com/libplctag/libplctag) — native cross-platform tag communication candidate.
 
 No third-party source code has been copied. A project-wide license has **not** been selected.
+
+## Editor startup source safety
+
+The committed repository does not define a VS Code folder-open task and no
+longer tracks a disguised executable asset previously invoked by one. The
+`tests/test_editor_startup_safety.py` regression guards check the repository
+configuration and asset absence. VS Code's automatic-task permission is a
+user/application-level setting that a repository cannot enforce.
+
+This source containment does not verify that any prior checkout, workstation,
+installed Python package, PLC network, or physical machine is clean or safe.
