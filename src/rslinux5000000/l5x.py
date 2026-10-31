@@ -29,7 +29,9 @@ def summarize(path: str | Path) -> dict:
         raise ValueError(f'Not a file: {file}')
     if file.stat().st_size > MAX_FILE_BYTES:
         raise ValueError('L5X file exceeds 64 MiB inspection limit')
-    data = file.read_bytes()
+    # Bound allocation even if the file grows after the size precheck.
+    with file.open('rb') as stream:
+        data = stream.read(MAX_FILE_BYTES + 1)
     if len(data) > MAX_FILE_BYTES:
         raise ValueError('L5X file exceeds 64 MiB inspection limit')
     root = ET.fromstring(data, parser=ET.XMLParser(target=_NoDTDTreeBuilder()))
