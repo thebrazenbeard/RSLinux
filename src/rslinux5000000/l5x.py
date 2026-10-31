@@ -7,6 +7,13 @@ import xml.etree.ElementTree as ET
 MAX_FILE_BYTES = 64 * 1024 * 1024
 
 
+class _NoDTDTreeBuilder(ET.TreeBuilder):
+    """Reject DTDs at the XML parser event boundary, for any XML encoding."""
+
+    def doctype(self, name: str, pubid: str | None, system: str | None) -> None:
+        raise ValueError('DTD/entity declarations are not accepted')
+
+
 def _local_name(tag: str) -> str:
     return tag.rsplit('}', 1)[-1]
 
@@ -23,9 +30,9 @@ def summarize(path: str | Path) -> dict:
     if file.stat().st_size > MAX_FILE_BYTES:
         raise ValueError('L5X file exceeds 64 MiB inspection limit')
     data = file.read_bytes()
-    if b'<!DOCTYPE' in data.upper() or b'<!ENTITY' in data.upper():
-        raise ValueError('DTD/entity declarations are not accepted')
-    root = ET.fromstring(data)
+    if len(data) > MAX_FILE_BYTES:
+        raise ValueError('L5X file exceeds 64 MiB inspection limit')
+    root = ET.fromstring(data, parser=ET.XMLParser(target=_NoDTDTreeBuilder()))
     if _local_name(root.tag) != 'RSLogix5000Content':
         raise ValueError('XML root is not RSLogix5000Content')
     controllers = [node for node in root.iter() if _local_name(node.tag) == 'Controller']
