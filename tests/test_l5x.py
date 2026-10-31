@@ -1,7 +1,10 @@
+import io
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 from rslinux5000000.l5x import summarize
 
 SAMPLE = b'''<?xml version="1.0" encoding="UTF-8"?>
@@ -70,7 +73,28 @@ class L5XTest(unittest.TestCase):
             self._load(b'<RSLogix5000Content><Controller>')
 
     def test_rejects_file_larger_than_limit(self):
-        from unittest.mock import patch
         with patch('rslinux5000000.l5x.MAX_FILE_BYTES', len(SAMPLE) - 1):
             with self.assertRaisesRegex(ValueError, 'inspection limit'):
                 self._load(SAMPLE)
+
+    def test_read_is_bounded_if_file_grows_after_precheck(self):
+        class RecordingStream(io.BytesIO):
+            def __init__(self, payload):
+                super().__init__(payload)
+                self.requested_sizes = []
+
+            def read(self, size=-1):
+                self.requested_sizes.append(size)
+                if size < 0:
+                    raise AssertionError('unbounded file read')
+                return super().read(size)
+
+        stream = RecordingStream(SAMPLE + b'oversize')
+        maximum = len(SAMPLE) - 1
+        with patch.object(Path, 'is_file', return_value=True), \
+             patch.object(Path, 'stat', return_value=SimpleNamespace(st_size=0)), \
+             patch.object(Path, 'open', return_value=stream), \
+             patch('rslinux5000000.l5x.MAX_FILE_BYTES', maximum):
+            with self.assertRaisesRegex(ValueError, 'inspection limit'):
+                summarize('simulated-growth.l5x')
+        self.assertEqual(stream.requested_sizes, [maximum + 1])
