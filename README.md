@@ -1,63 +1,79 @@
-# RSLinux — Research prototype 0.1
+# RSLinux — read-only EtherNet/IP and Logix export inspection
 
-This is a **read-only Python starter**, aimed first at a Rockwell Automation CompactLogix 1769-L32E. It is **not** a replacement for RSLogix 5000 or Studio 5000, not a controller program uploader, and has **not** been tested against physical PLC hardware.
+**RSLinux is a small, cross-platform Python inspection toolkit for industrial-controller identity and exported Logix XML metadata.** It provides explicitly requested EtherNet/IP ListIdentity probes and a local `.L5X` summary command without a controller programming or write interface.
 
-## What works
+**Status:** research prototype `0.1.0`, initially exercised against a CompactLogix 1769-L32E-oriented test model. No physical PLC qualification has been demonstrated. It is **not** RSLogix 5000 or Studio 5000, a controller-program uploader, a source-protection bypass, or a plant-safety system.
 
-- `discover`: Send one explicitly requested EtherNet/IP UDP ListIdentity discovery broadcast, collect replies for a bounded interval. No IP-range sweep; run only on an isolated bench network.
-- `probe`: Send EtherNet/IP encapsulation **ListIdentity** (0x0063) to a *known* IPv4 address over TCP port 44818. Decode product name, vendor, device type, code, firmware major/minor, and serial. Does not register an EtherNet/IP session or send tag writes, downloads, mode changes, or firmware commands.
-- `l5x-summary`: Inspect a local exported `.L5X` (Logix XML) without changing it. Reports controller, programs, routines, module names and tag count. This operates on an exported **file**, not the program residing in the PLC.
+## Capabilities and boundaries
 
-## Requirements and installation
+| CLI command | Input | Output and effect boundary |
+| --- | --- | --- |
+| `rslinux l5x-summary` | A local `.L5X` XML export | JSON inventory of controller/program/routine/module names and tag counts; does not contact a PLC or modify the file. Rejects files over 64 MiB and DTD/entity declarations. |
+| `rslinux probe` | One explicitly supplied IPv4 address | Sends EtherNet/IP encapsulation **ListIdentity** (`0x0063`) over TCP (default port 44818); reports identity fields such as vendor, device type, product code/name, revision and serial. No DNS name, subnet sweep, CIP session, tag access, download or configuration write. |
+| `rslinux discover` | An explicitly selected isolated bench network | Sends one UDP ListIdentity broadcast and collects replies within a bounded timeout. This is a network interaction even though it does not issue PLC writes. No IP-range scan. |
 
-Python 3.10+ (Linux, Windows, or macOS). No third-party dependencies for the commands.
+The package uses Python **3.10+**, its standard library and the installed `rslinux` command. There are no runtime third-party Python dependencies declared in `pyproject.toml`.
 
-Install from this GitHub repository with `python -m pip install git+https://github.com/thebrazenbeard/RSLinux.git`, or clone it and run `python -m pip install .` in the checkout. The installed `rslinux` command supports `discover`, `probe`, and `l5x-summary`. The `PYTHONPATH=src` commands below also work without installation from a checkout.
+## Install and inspect locally
 
-In the project directory:
+From a permitted repository checkout:
 
 ```bash
-PYTHONPATH=src python -m rslinux5000000 discover --bind 192.168.1.2
-PYTHONPATH=src python -m rslinux5000000 probe 192.168.1.10
-PYTHONPATH=src python -m rslinux5000000 l5x-summary exported.L5X
-PYTHONPATH=src python -m unittest discover -s tests -v
+python -m pip install .
+rslinux --help
+rslinux l5x-summary exported.L5X   # replace with a real local export
+python -m unittest discover -s tests -v
 ```
 
-On Windows PowerShell:
+An `.ACD` controller project is **not** an `.L5X` XML export and is not accepted by the XML summarizer. Obtain any export through authorized engineering software and existing change-control procedures.
+
+For development without installing the entrypoint, the equivalent module form is:
+
+```bash
+PYTHONPATH=src python -m rslinux5000000 l5x-summary exported.L5X
+```
+
+## Optional network identity inspection (authorized bench only)
+
+The addresses below come from the **documentation-only** IPv4 ranges in RFC 5737. They are placeholders, not configured devices or working interface addresses. **Replace them with the actual permitted IP addresses on an isolated test bench before running either command.** Never run discovery on a production or shared network.
+
+```bash
+# Documentation placeholders; configure for your own authorized bench first.
+BENCH_INTERFACE_IP=198.51.100.2
+BENCH_PLC_IP=203.0.113.10
+
+rslinux probe "$BENCH_PLC_IP" --timeout 2
+rslinux discover --bind "$BENCH_INTERFACE_IP" --timeout 2
+```
+
+Windows PowerShell uses the same installed command:
 
 ```powershell
-$env:PYTHONPATH = 'src'
-python -m rslinux5000000 probe 192.168.1.10
+# Documentation-only placeholder: replace with your authorized bench PLC IPv4.
+$BenchPlcIp = '203.0.113.10'
+rslinux probe $BenchPlcIp --timeout 2
 ```
 
-Replace `192.168.1.2` with your laptop Ethernet interface IPv4 and `192.168.1.10` with the PLC's **actual** IP address. A timeout does not establish that the device is absent: its IP may be on a different subnet, BOOTP may be active, a firewall may be blocking traffic, or the hardware may be unpowered. Do not reset or change the PLC IP just to make this probe work.
+A timeout is not proof that a device is absent: subnet differences, BOOTP, firewalls, power state and filtered broadcasts can all prevent a response. Do **not** reset or change a controller IP merely to make this probe work.
 
-## Safety and scope
+## Safety and licensing
 
-Use only with authorized equipment on an isolated test bench. Do not connect a bench PLC with unknown ladder logic to active machinery or the plant network. Confirm compatible 1769 power supply, wiring, end cap, and grounding from the correct Rockwell manual. Before any programming later, save a backup and independently verify controller mode, firmware version and ownership of the logic.
+- Operate only on equipment and networks you are authorized to inspect, ideally an isolated lab bench. Do not attach a controller with unknown logic to active machinery or a plant network.
+- Before any future programming work, follow the applicable Rockwell hardware/manual requirements for power, wiring, grounding, end caps and safety procedures; preserve backups and independently verify firmware, controller mode and logic ownership.
+- Read-only network traffic still interacts with embedded devices. No write command in this implementation is **not** equivalent to physical safety qualification.
+- The repository does not include copied third-party source. **No project-wide license has been selected**; public GitHub visibility should not be mistaken for a grant of reuse or redistribution rights.
 
-Read-only network requests still interact with embedded devices; do not equate absence of write commands with formal safety qualification. This tool neither bypasses source protection nor imports protected code. `.ACD` binaries are not `.L5X` XML exports and are not supported.
+## Research sources assessed (not incorporated)
 
-## Sources assessed
-
-- [jvalenzuela/l5x](https://github.com/jvalenzuela/l5x) — broad `.L5X` tag/file manipulation; GPLv3+, **not incorporated** into this prototype.
-- [tnunnink/ioList](https://github.com/tnunnink/ioList) — Windows WPF L5X-based I/O list generator; MIT; concept useful for later exports.
+- [jvalenzuela/l5x](https://github.com/jvalenzuela/l5x) — broad `.L5X` tag/file manipulation; GPLv3+, not incorporated.
+- [tnunnink/ioList](https://github.com/tnunnink/ioList) — Windows WPF L5X-based I/O list generator; MIT, concept reference.
 - [faraquet/RSLogix5000-Tag-Generator](https://github.com/faraquet/RSLogix5000-Tag-Generator) — legacy Python 2 tag CSV creation; no source incorporated.
-- [imdtouch/EthernetIP-Simulator](https://github.com/imdtouch/EthernetIP-Simulator) — EtherNet/IP virtual device/server; MIT, different goal from controller program upload.
-- [skdatmonster/DecryptSourceProtection](https://github.com/skdatmonster/DecryptSourceProtection) — source-protection removal; **not incorporated** and not needed for initial connectivity.
-- [ottowayi/pycomm3](https://github.com/ottowayi/pycomm3) — possible future Logix tag browsing/reading backend; its own repository cautions that development has ceased.
-- [dmroeder/pylogix](https://github.com/dmroeder/pylogix) — another Logix communication library to evaluate.
-- [libplctag/libplctag](https://github.com/libplctag/libplctag) — native cross-platform tag communication candidate.
+- [imdtouch/EthernetIP-Simulator](https://github.com/imdtouch/EthernetIP-Simulator) — EtherNet/IP virtual-device/server project; MIT, different scope.
+- [skdatmonster/DecryptSourceProtection](https://github.com/skdatmonster/DecryptSourceProtection) — source-protection removal; not incorporated and not required for identity inspection.
+- [ottowayi/pycomm3](https://github.com/ottowayi/pycomm3), [dmroeder/pylogix](https://github.com/dmroeder/pylogix), [libplctag/libplctag](https://github.com/libplctag/libplctag) — possible future Logix communication references, not runtime dependencies of this prototype.
 
-No third-party source code has been copied. A project-wide license has **not** been selected.
+## Editor-startup source safety
 
-## Editor startup source safety
+The tracked repository has no VS Code `folderOpen` execution task or disguised executable asset previously associated with one. `tests/test_editor_startup_safety.py` checks the known source configuration and asset absence. User/application-level editor automatic-task settings remain outside repository control.
 
-The committed repository does not define a VS Code folder-open task and no
-longer tracks a disguised executable asset previously invoked by one. The
-`tests/test_editor_startup_safety.py` regression guards check the repository
-configuration and asset absence. VS Code's automatic-task permission is a
-user/application-level setting that a repository cannot enforce.
-
-This source containment does not verify that any prior checkout, workstation,
-installed Python package, PLC network, or physical machine is clean or safe.
+Those checks do not prove that older checkouts, installed packages, a workstation, a PLC network, or physical machinery are safe. No live PLC test or deployment qualification is implied.
